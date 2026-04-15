@@ -1,0 +1,11 @@
+C:\clean\WindowsCleaner\src\Core\bin\Relea\net8.0-windows\WinSweep.Core.deps.json
+C:\clean\WindowsCleaner\src\Core\bin\Relea\net8.0-windows\WinSweep.Core.dll
+C:\clean\WindowsCleaner\src\Core\bin\Relea\net8.0-windows\WinSweep.Core.pdb
+C:\clean\WindowsCleaner\src\Core\obj\Relea\net8.0-windows\WinSweep.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\clean\WindowsCleaner\src\Core\obj\Relea\net8.0-windows\WinSweep.Core.AssemblyInfoInputs.cache
+C:\clean\WindowsCleaner\src\Core\obj\Relea\net8.0-windows\WinSweep.Core.AssemblyInfo.cs
+C:\clean\WindowsCleaner\src\Core\obj\Relea\net8.0-windows\WinSweep.Core.csproj.CoreCompileInputs.cache
+C:\clean\WindowsCleaner\src\Core\obj\Relea\net8.0-windows\WinSweep.Core.dll
+C:\clean\WindowsCleaner\src\Core\obj\Relea\net8.0-windows\refint\WinSweep.Core.dll
+C:\clean\WindowsCleaner\src\Core\obj\Relea\net8.0-windows\WinSweep.Core.pdb
+C:\clean\WindowsCleaner\src\Core\obj\Relea\net8.0-windows\ref\WinSweep.Core.dll

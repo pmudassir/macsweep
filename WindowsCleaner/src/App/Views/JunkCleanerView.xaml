@@ -1,0 +1,147 @@
+<UserControl x:Class="WinSweep.Views.JunkCleanerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:WinSweep.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:JunkCleanerViewModel}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             Background="{StaticResource BackgroundBrush}">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>   <!-- header + toolbar -->
+            <RowDefinition Height="Auto"/>   <!-- busy progress bar -->
+            <RowDefinition Height="*"/>      <!-- file list -->
+            <RowDefinition Height="Auto"/>   <!-- status bar -->
+        </Grid.RowDefinitions>
+
+        <!-- ── Header ──────────────────────────────────────────────────────── -->
+        <Border Grid.Row="0" Padding="28,22,24,18"
+                BorderBrush="{StaticResource AppBorderBrush}"
+                BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="Junk Cleaner"
+                               Style="{StaticResource LargeTitleStyle}"/>
+                    <TextBlock Text="Remove temporary files from %TEMP% and %LOCALAPPDATA%\Temp."
+                               Style="{StaticResource BodyStyle}"
+                               Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                            VerticalAlignment="Center" Margin="0,0,0,0">
+                    <Button Content="Select All"
+                            Command="{Binding SelectAllCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Padding="12,7" FontSize="12"
+                            Margin="0,0,8,0"/>
+                    <Button Content="Deselect All"
+                            Command="{Binding DeselectAllCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Padding="12,7" FontSize="12"
+                            Margin="0,0,8,0"/>
+                    <Button Content="Scan"
+                            Command="{Binding ScanCommand}"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Margin="0,0,8,0"/>
+                    <Button Content="Clean Selected"
+                            Command="{Binding CleanCommand}"
+                            Style="{StaticResource DangerButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ── Indeterminate progress bar (visible while busy) ────────────── -->
+        <ProgressBar Grid.Row="1"
+                     IsIndeterminate="True"
+                     Height="3"
+                     Foreground="{StaticResource AccentPurpleBrush}"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisConverter}}"/>
+
+        <!-- ── File list ────────────────────────────────────────────────────── -->
+        <ListView Grid.Row="2"
+                  x:Name="FileList"
+                  ItemsSource="{Binding Items}"
+                  ItemContainerStyle="{StaticResource FileListItemStyle}"
+                  Background="Transparent"
+                  BorderThickness="0"
+                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                  VirtualizingPanel.IsVirtualizing="True"
+                  VirtualizingPanel.VirtualizationMode="Recycling">
+            <ListView.View>
+                <GridView>
+                    <!-- Checkbox -->
+                    <GridViewColumn Width="44">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                          Foreground="{StaticResource AccentPurpleBrush}"
+                                          Click="FileCheckBox_Click"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+
+                    <!-- File name -->
+                    <GridViewColumn Header="File Name" Width="290"
+                                    DisplayMemberBinding="{Binding DisplayName}"/>
+
+                    <!-- Size -->
+                    <GridViewColumn Header="Size" Width="90"
+                                    DisplayMemberBinding="{Binding FormattedSize}"/>
+
+                    <!-- Category -->
+                    <GridViewColumn Header="Category" Width="110"
+                                    DisplayMemberBinding="{Binding Category}"/>
+
+                    <!-- Safe indicator -->
+                    <GridViewColumn Header="Safe" Width="55">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding IsSafeToDelete,
+                                           Converter={StaticResource BoolToSafeConverter}}"
+                                           Foreground="{StaticResource SuccessBrush}"
+                                           FontWeight="SemiBold"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+        </ListView>
+
+        <!-- ── Status bar ───────────────────────────────────────────────────── -->
+        <Border Grid.Row="3"
+                Background="{StaticResource SidebarBrush}"
+                BorderBrush="{StaticResource AppBorderBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="24,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Text="{Binding StatusText}"
+                           Style="{StaticResource BodyStyle}"
+                           VerticalAlignment="Center"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <TextBlock Style="{StaticResource BodyStyle}">
+                        <Run Text="{Binding SelectedCount, Mode=OneWay}"/>
+                        <Run Text=" files selected · "/>
+                        <Run Text="{Binding SelectedSize, Mode=OneWay}"/>
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

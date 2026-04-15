@@ -1,0 +1,7 @@
+C:\clean\WindowsCleaner\publish\WinSweep.exe
+C:\clean\WindowsCleaner\publish\WinSweep.dll
+C:\clean\WindowsCleaner\publish\WinSweep.deps.json
+C:\clean\WindowsCleaner\publish\WinSweep.runtimeconfig.json
+C:\clean\WindowsCleaner\publish\WinSweep.pdb
+C:\clean\WindowsCleaner\publish\WinSweep.Core.dll
+C:\clean\WindowsCleaner\publish\WinSweep.Core.pdb
