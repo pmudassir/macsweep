@@ -47,16 +47,24 @@ MacSweep-vX.X.X-mac.dmg
 - Open **Launchpad** or **Finder → Applications**
 - Double-click **MacSweep**
 
-> ⚠️ **"MacSweep is damaged or incomplete" error?**
-> This happens because macOS quarantines downloaded unsigned apps. To fix it, open **Terminal** and run:
+> ⚠️ **macOS Gatekeeper blocking the app?**
+> Since MacSweep is not notarized by Apple, macOS may block it. Use **any one** of these methods:
+>
+> **Method 1 — Terminal (fastest):**
 > ```bash
 > xattr -cr /Applications/MacSweep.app
+> sudo spctl --add --label "MacSweep" /Applications/MacSweep.app
+> open /Applications/MacSweep.app
 > ```
-> Then launch the app again — it will work!
-
-> 💡 **Gatekeeper warning on first launch?**
-> Right-click the app → **Open** → click **Open** in the dialog.
-> This only needs to be done once.
+>
+> **Method 2 — System Settings:**
+> 1. Try to open MacSweep (it will get blocked)
+> 2. Go to **System Settings → Privacy & Security**
+> 3. Scroll down — you'll see *"MacSweep was blocked"*
+> 4. Click **Open Anyway** → enter your password
+>
+> **Method 3 — Right-click:**
+> Right-click the app → **Open** → click **Open** in the dialog
 
 ---
 
