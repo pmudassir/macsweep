@@ -25,55 +25,80 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      # ── 3. Build MacSweep.app (no code signing during build) ──────────────
+      # ── 3. Show available schemes (debug) ─────────────────────────────────
+      - name: List schemes
+        run: xcodebuild -project MacSweep.xcodeproj -list
+
+      # ── 4. Build MacSweep.app ──────────────────────────────────────────────
+      #    - No xcpretty (masks errors), no || true (hides failures)
+      #    - Using -destination to force macOS platform
+      #    - Signing disabled for CI
       - name: Build MacSweep.app
         run: |
           xcodebuild build \
             -project MacSweep.xcodeproj \
             -scheme MacSweep \
             -configuration Release \
+            -destination "platform=macOS" \
             -derivedDataPath ./build \
-            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_ALLOWED=YES \
             ENABLE_APP_SANDBOX=NO \
-            CODE_SIGN_ENTITLEMENTS="" \
-            | xcpretty || true
+            CODE_SIGN_ENTITLEMENTS=""
 
-      # ── 4. Locate the built .app ──────────────────────────────────────────
-      - name: Locate .app bundle
+      # ── 5. Find and verify the .app bundle ────────────────────────────────
+      - name: Verify .app bundle
         run: |
+          echo "--- Searching for MacSweep.app ---"
+          find ./build -name "MacSweep.app" -type d
+
           APP_PATH=$(find ./build -name "MacSweep.app" -type d | head -n 1)
+
           if [ -z "$APP_PATH" ]; then
-            echo "ERROR: MacSweep.app not found!"
+            echo "❌ ERROR: MacSweep.app not found in build output!"
             exit 1
           fi
-          echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
-          echo "Found app at: $APP_PATH"
-          ls -la "$APP_PATH"
 
-      # ── 5. Ad-hoc sign the .app bundle ────────────────────────────────────
-      #    Ad-hoc signing (codesign -s -) creates a valid signature without
-      #    needing an Apple Developer certificate. This prevents the
-      #    "damaged or incomplete" error on macOS Gatekeeper.
+          EXECUTABLE="$APP_PATH/Contents/MacOS/MacSweep"
+          echo "--- Checking for executable at: $EXECUTABLE ---"
+
+          if [ ! -f "$EXECUTABLE" ]; then
+            echo "❌ ERROR: Executable is missing inside the .app bundle!"
+            echo "Contents of MacOS folder:"
+            ls -la "$APP_PATH/Contents/MacOS/" || echo "(folder does not exist)"
+            exit 1
+          fi
+
+          echo "✅ App found: $APP_PATH"
+          echo "✅ Executable exists: $EXECUTABLE"
+          echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
+
+      # ── 6. Ad-hoc code sign ───────────────────────────────────────────────
+      #    Prevents "damaged or incomplete" error on macOS Gatekeeper.
+      #    codesign -s - applies an ad-hoc signature (no Apple cert needed).
       - name: Ad-hoc code sign
         run: |
+          echo "Signing: ${{ env.APP_PATH }}"
           codesign --force --deep --sign - "${{ env.APP_PATH }}"
-          echo "Ad-hoc signing complete. Verifying..."
-          codesign --verify --verbose "${{ env.APP_PATH }}" || true
+          codesign --verify --verbose "${{ env.APP_PATH }}"
+          echo "✅ Ad-hoc signing complete"
 
-      # ── 6. Prepare staging directory for DMG ──────────────────────────────
-      #    create-dmg expects a source directory containing the .app
+      # ── 7. Stage .app for DMG packaging ──────────────────────────────────
       - name: Stage .app for DMG
         run: |
           mkdir -p ./dmg-staging
           cp -R "${{ env.APP_PATH }}" ./dmg-staging/MacSweep.app
+          echo "Staged contents:"
+          ls -la ./dmg-staging/
 
-      # ── 7. Install create-dmg ─────────────────────────────────────────────
+      # ── 8. Install create-dmg ─────────────────────────────────────────────
       - name: Install create-dmg
         run: brew install create-dmg
 
-      # ── 8. Create DMG ─────────────────────────────────────────────────────
+      # ── 9. Create DMG ─────────────────────────────────────────────────────
+      #    create-dmg exits with code 2 when --no-internet-enable is set,
+      #    even on success — we check for the file explicitly.
       - name: Create DMG
         run: |
           TAG="${{ github.ref_name }}"
@@ -91,16 +116,15 @@ jobs:
             "${DMG_NAME}" \
             "./dmg-staging/" || true
 
-          # create-dmg returns exit code 2 on success when --no-internet-enable is used
           if [ -f "${DMG_NAME}" ]; then
-            echo "DMG created successfully: ${DMG_NAME}"
+            echo "✅ DMG created: ${DMG_NAME}"
             echo "DMG_NAME=${DMG_NAME}" >> $GITHUB_ENV
           else
-            echo "ERROR: DMG was not created!"
+            echo "❌ ERROR: DMG file was not created!"
             exit 1
           fi
 
-      # ── 9. Upload DMG to GitHub Release ───────────────────────────────────
+      # ── 10. Upload DMG to GitHub Release ──────────────────────────────────
       - name: Create GitHub Release & Upload DMG
         uses: softprops/action-gh-release@v2
         with:
@@ -117,14 +141,14 @@ jobs:
             3. Drag **MacSweep.app** into your **Applications** folder
             4. Launch MacSweep from Launchpad or Spotlight
 
-            > ⚠️ **"MacSweep is damaged or incomplete" error?**
+            > ⚠️ **Gatekeeper blocking the app?**
             > Open **Terminal** and run:
-            > ```
+            > ```bash
             > xattr -cr /Applications/MacSweep.app
             > ```
-            > Then try launching again. This removes the quarantine flag from downloaded apps.
-
-            > 💡 Alternatively: right-click the app → **Open** → click **Open** in the dialog.
+            > Then launch the app again.
+            >
+            > Or: go to **System Settings → Privacy & Security** → scroll down → click **Open Anyway**
 
             ---
 

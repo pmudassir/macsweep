@@ -53,9 +53,8 @@ MacSweep-vX.X.X-mac.dmg
 > **Method 1 — Terminal (fastest):**
 > ```bash
 > xattr -cr /Applications/MacSweep.app
-> sudo spctl --add --label "MacSweep" /Applications/MacSweep.app
-> open /Applications/MacSweep.app
 > ```
+> Then double-click the app to open it.
 >
 > **Method 2 — System Settings:**
 > 1. Try to open MacSweep (it will get blocked)
