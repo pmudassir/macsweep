@@ -1,0 +1,76 @@
+name: WinSweep Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"          # triggers on tags like v1.0.0, v1.2.3, etc.
+  workflow_dispatch:       # allows manual trigger from GitHub UI
+
+permissions:
+  contents: write          # needed to create GitHub Releases
+
+jobs:
+  build-and-release:
+    name: Build & Release WinSweep
+    runs-on: windows-latest
+
+    steps:
+      # ── 1. Checkout code ─────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Setup .NET 8 ───────────────────────────────────────────────────
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      # ── 3. Restore NuGet packages ─────────────────────────────────────────
+      - name: Restore dependencies
+        run: dotnet restore WindowsCleaner/WindowsCleaner.sln
+
+      # ── 4. Publish self-contained Windows exe ─────────────────────────────
+      #    - Self-contained: users don't need .NET installed
+      #    - Single file: everything packed into WinSweep.exe
+      #    - win-x64: targets 64-bit Windows (works on Win 10/11)
+      - name: Publish WinSweep
+        run: |
+          dotnet publish WindowsCleaner/src/App/WinSweep.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            --output ./publish/WinSweep
+
+      # ── 5. Zip the published output ───────────────────────────────────────
+      - name: Create ZIP archive
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $zipName = "WinSweep-$tag-win-x64.zip"
+          Compress-Archive -Path "./publish/WinSweep/*" -DestinationPath "./$zipName"
+          echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+
+      # ── 6. Upload ZIP to GitHub Release ───────────────────────────────────
+      - name: Create GitHub Release & Upload ZIP
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "WinSweep ${{ github.ref_name }}"
+          tag_name: "${{ github.ref_name }}"
+          body: |
+            ## 🧹 WinSweep ${{ github.ref_name }}
+
+            ### 📥 How to Install
+            1. Download **${{ env.ZIP_NAME }}** below
+            2. Extract the ZIP anywhere (e.g. `C:\Program Files\WinSweep`)
+            3. Double-click **WinSweep.exe** to launch
+
+            > ✅ No installation required. No .NET needed. Just extract and run!
+
+            ### System Requirements
+            - Windows 10 or 11 (64-bit)
+            - Administrator privileges recommended for full cleaning features
+          files: "${{ env.ZIP_NAME }}"
+          draft: false
+          prerelease: false
