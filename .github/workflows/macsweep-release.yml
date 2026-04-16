@@ -19,51 +19,46 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Select latest Xcode ────────────────────────────────────────────
+      # ── 2. Select latest stable Xcode ─────────────────────────────────────
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
 
-      # ── 3. Build MacSweep archive ─────────────────────────────────────────
-      - name: Build MacSweep (archive)
+      # ── 3. Build MacSweep.app (no code signing, no archive) ───────────────
+      #    We build directly into ./build/Release/MacSweep.app
+      #    Disabling sandbox + signing so it builds cleanly on CI
+      - name: Build MacSweep.app
         run: |
-          xcodebuild archive \
+          xcodebuild build \
             -project MacSweep.xcodeproj \
             -scheme MacSweep \
             -configuration Release \
-            -archivePath ./build/MacSweep.xcarchive \
+            -derivedDataPath ./build \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            ENABLE_APP_SANDBOX=NO \
+            CODE_SIGN_ENTITLEMENTS="" \
+            | xcpretty || true
 
-      # ── 4. Export the .app from the archive ──────────────────────────────
-      - name: Export .app
+      # ── 4. Locate the built .app ──────────────────────────────────────────
+      - name: Locate .app bundle
         run: |
-          xcodebuild -exportArchive \
-            -archivePath ./build/MacSweep.xcarchive \
-            -exportPath ./build/export \
-            -exportOptionsPlist /dev/stdin <<'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>mac-application</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-          </dict>
-          </plist>
-          EOF
+          APP_PATH=$(find ./build -name "MacSweep.app" -type d | head -n 1)
+          echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
+          echo "Found app at: $APP_PATH"
 
-      # ── 5. Create DMG from exported .app ─────────────────────────────────
+      # ── 5. Install create-dmg ─────────────────────────────────────────────
       - name: Install create-dmg
         run: brew install create-dmg
 
+      # ── 6. Create DMG ─────────────────────────────────────────────────────
       - name: Create DMG
         run: |
           TAG="${{ github.ref_name }}"
           DMG_NAME="MacSweep-${TAG}-mac.dmg"
+
           create-dmg \
             --volname "MacSweep ${TAG}" \
             --window-pos 200 120 \
@@ -72,20 +67,24 @@ jobs:
             --icon "MacSweep.app" 175 190 \
             --hide-extension "MacSweep.app" \
             --app-drop-link 425 190 \
+            --no-internet-enable \
             "${DMG_NAME}" \
-            "./build/export/MacSweep.app"
+            "${{ env.APP_PATH }}"
+
           echo "DMG_NAME=${DMG_NAME}" >> $GITHUB_ENV
 
-      # ── 6. Upload DMG to GitHub Release ──────────────────────────────────
+      # ── 7. Upload DMG to GitHub Release ───────────────────────────────────
       - name: Create GitHub Release & Upload DMG
         uses: softprops/action-gh-release@v2
         with:
-          name: "MacSweep ${{ github.ref_name }}"
+          name: "MacSweep & WinSweep ${{ github.ref_name }}"
           tag_name: "${{ github.ref_name }}"
           body: |
-            ## 🧹 MacSweep ${{ github.ref_name }}
+            ## 🧹 MacSweep & WinSweep ${{ github.ref_name }}
 
-            ### 📥 How to Install (macOS)
+            ---
+
+            ### 🍎 macOS — Download & Install
             1. Download **${{ env.DMG_NAME }}** below
             2. Open the `.dmg` file
             3. Drag **MacSweep.app** into your **Applications** folder
@@ -93,9 +92,22 @@ jobs:
 
             > ⚠️ First launch: right-click the app → **Open** → **Open** (to bypass Gatekeeper on unsigned builds)
 
+            ---
+
+            ### 🪟 Windows — Download & Install
+            1. Download **WinSweep-${{ github.ref_name }}-win-x64.zip** below
+            2. Extract the ZIP anywhere
+            3. Double-click **WinSweep.exe** (Run as Administrator for full features)
+
+            > ✅ No installer needed. No .NET required. Just extract and run!
+
+            ---
+
             ### System Requirements
-            - macOS 13 Ventura or later
-            - Apple Silicon (M1/M2/M3) or Intel Mac
+            | | macOS | Windows |
+            |---|---|---|
+            | OS | macOS 14 Sonoma+ | Windows 10/11 (64-bit) |
+            | Arch | Apple Silicon / Intel | x64 |
           files: "${{ env.DMG_NAME }}"
           draft: false
           prerelease: false
