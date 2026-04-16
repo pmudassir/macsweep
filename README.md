@@ -101,4 +101,3 @@ MIT License — free to use, modify, and distribute.
 
 ---
 
-<p align="center">Made with ❤️ for Windows users</p>
