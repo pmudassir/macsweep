@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - Disk Usage Service
 
@@ -6,25 +7,16 @@ import Foundation
 class DiskUsageService: ObservableObject {
     static let shared = DiskUsageService()
 
-    @Published var diskUsage: DiskUsage = .empty
     @Published var isLoading = false
-    @Published var storageCategories: [StorageCategoryInfo] = []
 
     private let fileManager = FileManager.default
 
     private init() {}
 
-    // MARK: - Fetch Disk Usage
+    // MARK: - Public API (used by DashboardViewModel)
 
-    func fetchDiskUsage() async {
-        isLoading = true
-        defer { isLoading = false }
-
-        diskUsage = await calculateDiskUsage()
-        storageCategories = await calculateStorageCategories()
-    }
-
-    private func calculateDiskUsage() async -> DiskUsage {
+    /// Returns current disk usage synchronously from system APIs
+    func getDiskUsage() -> DiskUsage {
         do {
             let url = URL(fileURLWithPath: "/")
             let values = try url.resourceValues(
@@ -39,25 +31,24 @@ class DiskUsageService: ObservableObject {
         }
     }
 
-    private func calculateStorageCategories() async -> [StorageCategoryInfo] {
+    /// Returns storage breakdown by home directory category (async)
+    func getStorageBreakdown() async -> [StorageCategoryInfo] {
         let home = fileManager.homeDirectoryForCurrentUser.path
 
-        let categories: [(String, String, String)] = [
-            ("Applications", "app.fill", "\(home)/Applications"),
-            ("Documents",    "doc.fill", "\(home)/Documents"),
-            ("Downloads",    "arrow.down.circle.fill", "\(home)/Downloads"),
-            ("Desktop",      "desktopcomputer", "\(home)/Desktop"),
-            ("Library",      "books.vertical.fill", "\(home)/Library"),
-            ("Movies",       "film.fill", "\(home)/Movies"),
-            ("Music",        "music.note", "\(home)/Music"),
-            ("Pictures",     "photo.fill", "\(home)/Pictures"),
+        let definitions: [(String, String, String, String)] = [
+            ("Applications", "app.fill",                  "\(home)/Applications", "4F46E5"),
+            ("Documents",    "doc.fill",                  "\(home)/Documents",    "7C3AED"),
+            ("Downloads",    "arrow.down.circle.fill",    "\(home)/Downloads",    "2563EB"),
+            ("Desktop",      "desktopcomputer",           "\(home)/Desktop",      "059669"),
+            ("Library",      "books.vertical.fill",       "\(home)/Library",      "D97706"),
+            ("Movies",       "film.fill",                 "\(home)/Movies",       "DC2626"),
+            ("Music",        "music.note",                "\(home)/Music",        "EC4899"),
+            ("Pictures",     "photo.fill",                "\(home)/Pictures",     "0891B2"),
         ]
 
         var result: [StorageCategoryInfo] = []
-        for (name, icon, path) in categories {
+        for (name, icon, path, color) in definitions {
             let size = directorySize(atPath: path)
-            let colors = ["4F46E5", "7C3AED", "2563EB", "059669", "D97706", "DC2626", "EC4899", "0891B2"]
-            let color = colors[result.count % colors.count]
             result.append(StorageCategoryInfo(name: name, icon: icon, size: size, color: color))
         }
 
@@ -66,8 +57,14 @@ class DiskUsageService: ObservableObject {
 
     // MARK: - Helpers
 
+    /// Called by DeveloperToolsService — accepts a path String
     func directorySize(atPath path: String) -> Int64 {
-        var totalSize: Int64 = 0
+        return directorySize(at: path)
+    }
+
+    /// Called by DeveloperToolsService — accepts a path String with `at:` label
+    func directorySize(at path: String) -> Int64 {
+        var total: Int64 = 0
         guard let enumerator = fileManager.enumerator(
             at: URL(fileURLWithPath: path),
             includingPropertiesForKeys: [.fileSizeKey],
@@ -75,9 +72,10 @@ class DiskUsageService: ObservableObject {
         ) else { return 0 }
 
         for case let fileURL as URL in enumerator {
-            guard let size = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize else { continue }
-            totalSize += Int64(size)
+            guard let size = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize
+            else { continue }
+            total += Int64(size)
         }
-        return totalSize
+        return total
     }
 }
