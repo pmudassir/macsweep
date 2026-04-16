@@ -25,9 +25,7 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      # ── 3. Build MacSweep.app (no code signing, no archive) ───────────────
-      #    We build directly into ./build/Release/MacSweep.app
-      #    Disabling sandbox + signing so it builds cleanly on CI
+      # ── 3. Build MacSweep.app (no code signing during build) ──────────────
       - name: Build MacSweep.app
         run: |
           xcodebuild build \
@@ -46,14 +44,36 @@ jobs:
       - name: Locate .app bundle
         run: |
           APP_PATH=$(find ./build -name "MacSweep.app" -type d | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: MacSweep.app not found!"
+            exit 1
+          fi
           echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
           echo "Found app at: $APP_PATH"
+          ls -la "$APP_PATH"
 
-      # ── 5. Install create-dmg ─────────────────────────────────────────────
+      # ── 5. Ad-hoc sign the .app bundle ────────────────────────────────────
+      #    Ad-hoc signing (codesign -s -) creates a valid signature without
+      #    needing an Apple Developer certificate. This prevents the
+      #    "damaged or incomplete" error on macOS Gatekeeper.
+      - name: Ad-hoc code sign
+        run: |
+          codesign --force --deep --sign - "${{ env.APP_PATH }}"
+          echo "Ad-hoc signing complete. Verifying..."
+          codesign --verify --verbose "${{ env.APP_PATH }}" || true
+
+      # ── 6. Prepare staging directory for DMG ──────────────────────────────
+      #    create-dmg expects a source directory containing the .app
+      - name: Stage .app for DMG
+        run: |
+          mkdir -p ./dmg-staging
+          cp -R "${{ env.APP_PATH }}" ./dmg-staging/MacSweep.app
+
+      # ── 7. Install create-dmg ─────────────────────────────────────────────
       - name: Install create-dmg
         run: brew install create-dmg
 
-      # ── 6. Create DMG ─────────────────────────────────────────────────────
+      # ── 8. Create DMG ─────────────────────────────────────────────────────
       - name: Create DMG
         run: |
           TAG="${{ github.ref_name }}"
@@ -69,11 +89,18 @@ jobs:
             --app-drop-link 425 190 \
             --no-internet-enable \
             "${DMG_NAME}" \
-            "${{ env.APP_PATH }}"
+            "./dmg-staging/" || true
 
-          echo "DMG_NAME=${DMG_NAME}" >> $GITHUB_ENV
+          # create-dmg returns exit code 2 on success when --no-internet-enable is used
+          if [ -f "${DMG_NAME}" ]; then
+            echo "DMG created successfully: ${DMG_NAME}"
+            echo "DMG_NAME=${DMG_NAME}" >> $GITHUB_ENV
+          else
+            echo "ERROR: DMG was not created!"
+            exit 1
+          fi
 
-      # ── 7. Upload DMG to GitHub Release ───────────────────────────────────
+      # ── 9. Upload DMG to GitHub Release ───────────────────────────────────
       - name: Create GitHub Release & Upload DMG
         uses: softprops/action-gh-release@v2
         with:
@@ -90,7 +117,14 @@ jobs:
             3. Drag **MacSweep.app** into your **Applications** folder
             4. Launch MacSweep from Launchpad or Spotlight
 
-            > ⚠️ First launch: right-click the app → **Open** → **Open** (to bypass Gatekeeper on unsigned builds)
+            > ⚠️ **"MacSweep is damaged or incomplete" error?**
+            > Open **Terminal** and run:
+            > ```
+            > xattr -cr /Applications/MacSweep.app
+            > ```
+            > Then try launching again. This removes the quarantine flag from downloaded apps.
+
+            > 💡 Alternatively: right-click the app → **Open** → click **Open** in the dialog.
 
             ---
 
@@ -106,7 +140,7 @@ jobs:
             ### System Requirements
             | | macOS | Windows |
             |---|---|---|
-            | OS | macOS 14 Sonoma+ | Windows 10/11 (64-bit) |
+            | OS | macOS 13 Ventura+ | Windows 10/11 (64-bit) |
             | Arch | Apple Silicon / Intel | x64 |
           files: "${{ env.DMG_NAME }}"
           draft: false

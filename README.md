@@ -47,9 +47,16 @@ MacSweep-vX.X.X-mac.dmg
 - Open **Launchpad** or **Finder → Applications**
 - Double-click **MacSweep**
 
-> ⚠️ **First-time Gatekeeper warning?**
+> ⚠️ **"MacSweep is damaged or incomplete" error?**
+> This happens because macOS quarantines downloaded unsigned apps. To fix it, open **Terminal** and run:
+> ```bash
+> xattr -cr /Applications/MacSweep.app
+> ```
+> Then launch the app again — it will work!
+
+> 💡 **Gatekeeper warning on first launch?**
 > Right-click the app → **Open** → click **Open** in the dialog.
-> This only needs to be done once for unsigned builds.
+> This only needs to be done once.
 
 ---
 
@@ -125,6 +132,13 @@ WinSweep-vX.X.X-win-x64.zip
 
 **Q: Do I need to install .NET on Windows?**
 > No! WinSweep is fully self-contained. Everything it needs is bundled inside the ZIP.
+
+**Q: macOS says "MacSweep is damaged or incomplete." How do I fix it?**
+> Open **Terminal** and run:
+> ```bash
+> xattr -cr /Applications/MacSweep.app
+> ```
+> Then launch the app again. This removes the macOS quarantine flag from downloaded apps.
 
 **Q: macOS says the app is from an unidentified developer. What do I do?**
 > Right-click the app → **Open** → click **Open**. This bypasses Gatekeeper for unsigned apps and only needs to be done once.
